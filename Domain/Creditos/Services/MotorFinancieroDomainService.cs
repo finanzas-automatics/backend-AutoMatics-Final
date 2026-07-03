@@ -13,6 +13,7 @@ namespace AutoMatics.Domain.Creditos.Services
 
         public decimal CalcularCuotaFrancesa(decimal montoPrestamo, decimal montoCuotaFinal, double tem, int plazoMeses)
         {
+            // Esta función se mantiene por seguridad estructural, aunque el nuevo motor Interbank la calcula dinámicamente.
             if (tem == 0) return (montoPrestamo - montoCuotaFinal) / plazoMeses;
             double factorDescuento = Math.Pow(1 + tem, -plazoMeses);
             decimal valorActualBalon = montoCuotaFinal * (decimal)factorDescuento;
@@ -22,6 +23,7 @@ namespace AutoMatics.Domain.Creditos.Services
         public double CalcularVAN(double[] flujoCaja, int plazoMeses, double tasaCokMensual)
         {
             double van = 0;
+            // Se calcula hasta N+1 (plazoMeses incluye el mes extra del cuotón)
             for (int t = 0; t <= plazoMeses; t++) van += flujoCaja[t] / Math.Pow(1 + tasaCokMensual, t);
             return van;
         }
@@ -35,7 +37,6 @@ namespace AutoMatics.Domain.Creditos.Services
                 double vanEstimado = 0;
                 for (int t = 0; t <= plazoMeses; t++) vanEstimado += flujoCaja[t] / Math.Pow(1 + tirEstimada, t);
                 
-                // ✨ MAGIA: Corrección de bisección. Si el VAN deudor es mayor a 0, la tasa es muy alta.
                 if (vanEstimado > 0) limiteSup = tirEstimada; 
                 else limiteInf = tirEstimada;
             }
@@ -49,80 +50,162 @@ namespace AutoMatics.Domain.Creditos.Services
             decimal portesMensuales, double tasaCokAnual)
         {
             var resultado = new SimulacionResultado();
+
+            // 1. Constantes y Tasas Base
+            double PV = (double)precioVenta;
+            double pCI = (double)porcentajeCuotaInicial;
+            double pCF = (double)porcentajeCuotaFinal;
+            int N = plazoMeses;
+            double Tasa = (double)tasaInteresAnual;
             
-            // ✨ Eliminadas las divisiones / 100 porque Flutter ya manda los decimales (ej. 0.2)
-            decimal cuotaInicialMonto = precioVenta * porcentajeCuotaInicial;
-            resultado.MontoPrestamo = precioVenta - cuotaInicialMonto;
-            resultado.CuotaFinalVal = precioVenta * porcentajeCuotaFinal;
+            int NDxA = 360;
+            int frec = 30;
 
-            // ✨ TasaInteresAnual y tasaCokAnual ya vienen en 0.15 y 0.1, no dividir entre 100
-            double tem = esTasaEfectiva ? ConvertirEfectivaAEfectiva(tasaInteresAnual, 360, 30) : ConvertirNominalAEfectiva(tasaInteresAnual, 360, diasCapitalizacion, 30);
-            double cokMensual = ConvertirEfectivaAEfectiva(tasaCokAnual, 360, 30);
+            double TEM = esTasaEfectiva 
+                ? ConvertirEfectivaAEfectiva(Tasa, NDxA, frec) 
+                : ConvertirNominalAEfectiva(Tasa, NDxA, diasCapitalizacion, frec);
 
-            decimal saldoInsoluto = resultado.MontoPrestamo;
-            double[] flujoCaja = new double[plazoMeses + 1];
-            flujoCaja[0] = (double)resultado.MontoPrestamo; 
+            double pSegDesPer = (double)tasaDesgravamenMensual;
+            // Si el seguro vehicular es < 1, asumimos que es una tasa porcentual (ej. 0.00030 * PV). Si no, es un monto fijo.
+            double SegRiePer = (double)seguroVehicularMensual < 1.0 ? PV * (double)seguroVehicularMensual : (double)seguroVehicularMensual;
+            double PortesPer = (double)portesMensuales;
+            double GPSPer = 0.0;     // Extensible si a futuro mandas estos datos
+            double GasAdmPer = 0.0;
 
-            decimal cuotaFijaBase = 0;
-            int mesesAmortizacion = plazoMeses - (mesesGraciaTotal + mesesGraciaParcial);
+            // 2. Costos Iniciales del Préstamo
+            double CI = pCI * PV;
+            double CF = pCF * PV;
+            double Prestamo = PV - CI;
 
-            for (int mes = 1; mes <= plazoMeses; mes++)
+            resultado.MontoPrestamo = (decimal)Prestamo;
+            resultado.CuotaFinalVal = (decimal)CF;
+
+            // ✨ ESTILO INTERBANK: El valor presente del cuotón se descuenta elevándolo a la (N+1)
+            double SICF_mes1 = CF / Math.Pow(1 + TEM + pSegDesPer, N + 1);
+            double SaldoRegular_mes1 = Prestamo - SICF_mes1;
+
+            // Variables iterativas para los dos cronogramas paralelos
+            double SICF = SICF_mes1;
+            double SI = SaldoRegular_mes1;
+
+            // El flujo de caja ahora dura N + 1 meses (el mes extra es exclusivo para la cuota final)
+            double[] flujoCaja = new double[N + 2]; 
+            flujoCaja[0] = Prestamo; 
+
+            for (int mes = 1; mes <= N + 1; mes++)
             {
-                var cuota = new CuotaCronograma { NumeroMes = mes, SaldoInicial = saldoInsoluto };
-                if (mes <= mesesGraciaTotal) cuota.TipoPeriodo = TipoPeriodo.TOTAL;
-                else if (mes <= mesesGraciaTotal + mesesGraciaParcial) cuota.TipoPeriodo = TipoPeriodo.PARCIAL;
-                else cuota.TipoPeriodo = TipoPeriodo.NORMAL;
+                var cuota = new CuotaCronograma { NumeroMes = mes };
 
-                cuota.Interes = cuota.SaldoInicial * (decimal)tem;
-                resultado.InteresTotalAcumulado += cuota.Interes;
-
-                if (cuota.TipoPeriodo == TipoPeriodo.TOTAL) 
-                { 
-                    cuota.Amortizacion = 0; 
-                    cuota.CuotaBase = 0; 
-                    cuota.SaldoFinal = cuota.SaldoInicial + cuota.Interes; 
-                }
-                else if (cuota.TipoPeriodo == TipoPeriodo.PARCIAL) 
-                { 
-                    cuota.Amortizacion = 0; 
-                    cuota.CuotaBase = cuota.Interes; 
-                    cuota.SaldoFinal = cuota.SaldoInicial; 
-                }
-                else 
+                if (mes <= N)
                 {
-                    // ✨ Calculamos la cuota francesa SOLO UNA VEZ basándonos en el saldo después de las gracias
-                    if (cuotaFijaBase == 0 && mesesAmortizacion > 0)
-                    {
-                        cuotaFijaBase = CalcularCuotaFrancesa(cuota.SaldoInicial, resultado.CuotaFinalVal, tem, mesesAmortizacion);
-                    }
-                    
-                    cuota.Amortizacion = cuotaFijaBase - cuota.Interes; 
-                    cuota.CuotaBase = cuotaFijaBase; 
-                    
-                    if (mes == plazoMeses) 
-                    {
-                        cuota.Amortizacion += resultado.CuotaFinalVal;
-                        cuota.CuotaBase += resultado.CuotaFinalVal;
-                    }
-                    
-                    cuota.SaldoFinal = cuota.SaldoInicial - cuota.Amortizacion;
-                    
-                    // Control de decimales para que el último saldo cierre exactamente en 0
-                    if (Math.Abs(cuota.SaldoFinal) < 0.1m) cuota.SaldoFinal = 0;
+                    if (mes <= mesesGraciaTotal) cuota.TipoPeriodo = TipoPeriodo.TOTAL;
+                    else if (mes <= mesesGraciaTotal + mesesGraciaParcial) cuota.TipoPeriodo = TipoPeriodo.PARCIAL;
+                    else cuota.TipoPeriodo = TipoPeriodo.NORMAL;
+                }
+                else
+                {
+                    cuota.TipoPeriodo = TipoPeriodo.NORMAL; // Para el mes N+1 (Cuota Final)
                 }
 
-                cuota.SegurosYGastos = (cuota.SaldoInicial * tasaDesgravamenMensual) + seguroVehicularMensual + portesMensuales;
-                cuota.CuotaTotalMensual = cuota.CuotaBase + cuota.SegurosYGastos;
+                // ========================================================
+                // CRONOGRAMA 1: CUOTA FINAL (BALÓN)
+                // ========================================================
+                double ICF = SICF * TEM;
+                double SegDesCF = SICF * pSegDesPer;
+                double ACF = (mes == N + 1) ? (SICF + ICF + SegDesCF) : 0;
+                double SFCF = SICF + ICF + SegDesCF - ACF;
 
-                saldoInsoluto = cuota.SaldoFinal;
+                // ========================================================
+                // CRONOGRAMA 2: CUOTA REGULAR
+                // ========================================================
+                double I = 0, SegDes = 0, CuotaMensualReg = 0, A = 0, SF = 0;
+                double SegRie = 0, GPS = 0, Portes = 0, GasAdm = 0;
+
+                // Los gastos periódicos fijos se cobran incluso en el mes N+1 (mes 37)
+                if (mes <= N + 1)
+                {
+                    SegRie = SegRiePer;
+                    GPS = GPSPer;
+                    Portes = PortesPer;
+                    GasAdm = GasAdmPer;
+                }
+
+                if (mes <= N)
+                {
+                    I = SI * TEM;
+                    SegDes = SI * pSegDesPer;
+
+                    if (cuota.TipoPeriodo == TipoPeriodo.TOTAL)
+                    {
+                        CuotaMensualReg = 0;
+                        A = 0;
+                        SF = SI + I;
+                    }
+                    else if (cuota.TipoPeriodo == TipoPeriodo.PARCIAL)
+                    {
+                        CuotaMensualReg = I;
+                        A = 0;
+                        SF = SI;
+                    }
+                    else // NORMAL
+                    {
+                        // ✨ FÓRMULA EXCEL INTERBANK: =PAGO(TEM+pSegDesPer; N-@NC+1; @SI; 0; 0)
+                        double rate = TEM + pSegDesPer;
+                        int nper = N - mes + 1;
+                        CuotaMensualReg = (SI * rate) / (1 - Math.Pow(1 + rate, -nper));
+                        
+                        A = CuotaMensualReg - I - SegDes;
+                        SF = SI - A;
+                    }
+                }
+
+                // ========================================================
+                // CONSOLIDADO Y FLUJO DE CAJA
+                // ========================================================
+                double pagoRegular = 0;
+
+                if (mes <= N)
+                {
+                    pagoRegular = CuotaMensualReg + SegRie + GPS + Portes + GasAdm;
+                    // Regla bancaria: En periodo de gracia se sigue pagando el seguro de desgravamen de bolsillo
+                    if (cuota.TipoPeriodo == TipoPeriodo.TOTAL || cuota.TipoPeriodo == TipoPeriodo.PARCIAL)
+                    {
+                        pagoRegular += SegDes; 
+                    }
+                }
+                else // mes == N+1 (El gran cuotón)
+                {
+                    pagoRegular = ACF + SegRie + GPS + Portes + GasAdm;
+                }
+
+                flujoCaja[mes] = -pagoRegular;
+
+                // Armado del objeto visual para Flutter sumando ambos cronogramas
+                cuota.SaldoInicial = (decimal)(SI + SICF);
+                cuota.Interes = (decimal)(I + ICF);
+                cuota.Amortizacion = (decimal)(A + ACF);
+                cuota.SegurosYGastos = (decimal)(SegDes + SegDesCF + SegRie + GPS + Portes + GasAdm);
+                cuota.CuotaBase = (decimal)(A + ACF + I + ICF); // Puramente Amortización + Intereses totales
+                cuota.CuotaTotalMensual = (decimal)pagoRegular;
+                cuota.SaldoFinal = (decimal)(SF + SFCF);
+
+                // Forzar a cero absoluto el último céntimo para evitar notación científica
+                if (Math.Abs(cuota.SaldoFinal) < 0.05m) cuota.SaldoFinal = 0;
+
                 resultado.TotalAPagar += cuota.CuotaTotalMensual;
-                flujoCaja[mes] = -(double)cuota.CuotaTotalMensual;
+                resultado.InteresTotalAcumulado += cuota.Interes;
                 resultado.Cronograma.Add(cuota);
+
+                // Avanzar saldos al siguiente mes
+                SICF = SFCF;
+                SI = SF;
             }
 
-            resultado.Van = CalcularVAN(flujoCaja, plazoMeses, cokMensual);
-            resultado.Tir = CalcularTIR(flujoCaja, plazoMeses);
-            resultado.Tcea = Math.Pow(1 + resultado.Tir, 12) - 1;
+            // 3. Indicadores Finales (VAN, TIR, TCEA) calculados con N+1 flujos
+            double cokMensual = ConvertirEfectivaAEfectiva((double)tasaCokAnual, NDxA, frec);
+            resultado.Van = CalcularVAN(flujoCaja, N + 1, cokMensual);
+            resultado.Tir = CalcularTIR(flujoCaja, N + 1);
+            resultado.Tcea = Math.Pow(1 + resultado.Tir, (double)NDxA / frec) - 1;
 
             return resultado;
         }
