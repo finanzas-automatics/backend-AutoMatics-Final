@@ -32,12 +32,19 @@ namespace AutoMatics.Application.Creditos.Internal.CommandServices
 
         public async Task<Credito> HandleAsync(CreateSimulacionCommand command)
         {
+            // ✨ LLAMADA AL MOTOR ACTUALIZADA CON LOS 11 PARÁMETROS NUEVOS
             var resultado = _motorFinanciero.GenerarCronograma(
                 command.PrecioVenta, command.PorcentajeCuotaInicial, command.PlazoMeses,
                 command.TasaInteresAnual, command.EsTasaEfectiva, command.DiasCapitalizacion,
                 command.MesesGraciaTotal, command.MesesGraciaParcial, command.PorcentajeCuotaFinal,
                 command.TasaDesgravamenMensual, command.SeguroVehicularMensual,
-                command.PortesMensuales, command.TasaCokAnual
+                command.PortesMensuales, command.TasaCokAnual,
+                command.CostesNotariales, command.FinanciarNotariales,
+                command.CostesRegistrales, command.FinanciarRegistrales,
+                command.Tasacion, command.FinanciarTasacion,
+                command.ComisionEstudio, command.FinanciarEstudio,
+                command.ComisionActivacion, command.FinanciarActivacion,
+                command.GpsMensual, command.GastosAdmMensuales
             );
 
             decimal primeraCuotaTotal = resultado.Cronograma[0].CuotaTotalMensual;
@@ -124,27 +131,26 @@ namespace AutoMatics.Application.Creditos.Internal.CommandServices
        
         // ✨ AÑADE ESTA FUNCIÓN COMPLETA AL FINAL DE TU CLASE
         public async Task EliminarAsync(int id)
-                {
-                    // 1. Buscamos el crédito usando tu método 'FindByIdAsync'
-                    var credito = await _creditoRepository.FindByIdAsync(id);
-                    
-                    if (credito == null)
-                    {
-                        throw new Exception("La simulación que intentas eliminar no existe o ya fue borrada.");
-                    }
+        {
+            // 1. Buscamos el crédito usando tu método 'FindByIdAsync'
+            var credito = await _creditoRepository.FindByIdAsync(id);
+            
+            if (credito == null)
+            {
+                throw new Exception("La simulación que intentas eliminar no existe o ya fue borrada.");
+            }
 
-                    // 2. Protegemos el sistema
-                    if (credito.Estado == "Aprobado" || credito.Estado == "Activo" || credito.Estado == "Mora")
-                    {
-                        throw new Exception("No se puede eliminar un crédito que ya fue aprobado o está en curso.");
-                    }
+            // 2. Protegemos el sistema
+            if (credito.Estado == "Aprobado" || credito.Estado == "Activo" || credito.Estado == "Mora")
+            {
+                throw new Exception("No se puede eliminar un crédito que ya fue aprobado o está en curso.");
+            }
 
-                    // 3. Lo eliminamos usando 'Remove'
-                    _creditoRepository.Remove(credito);
-                    
-                    // 4. Guardamos los cambios
-                    await _unitOfWork.CompleteAsync();
-                }
-
+            // 3. Lo eliminamos usando 'Remove'
+            _creditoRepository.Remove(credito);
+            
+            // 4. Guardamos los cambios
+            await _unitOfWork.CompleteAsync();
+        }
     }
 }

@@ -45,7 +45,14 @@ namespace AutoMatics.Domain.Creditos.Services
             decimal precioVenta, decimal porcentajeCuotaInicial, int plazoMeses, double tasaInteresAnual, 
             bool esTasaEfectiva, int diasCapitalizacion, int mesesGraciaTotal, int mesesGraciaParcial, 
             decimal porcentajeCuotaFinal, decimal tasaDesgravamenMensual, decimal seguroVehicularMensual, 
-            decimal portesMensuales, double tasaCokAnual)
+            decimal portesMensuales, double tasaCokAnual,
+            // ✨ NUEVOS PARÁMETROS DEL EXCEL AÑADIDOS AQUÍ
+            decimal costesNotariales, bool financiarNotariales,
+            decimal costesRegistrales, bool financiarRegistrales,
+            decimal tasacion, bool financiarTasacion,
+            decimal comisionEstudio, bool financiarEstudio,
+            decimal comisionActivacion, bool financiarActivacion,
+            decimal gpsMensual, decimal gastosAdmMensuales)
         {
             var resultado = new SimulacionResultado();
 
@@ -75,15 +82,23 @@ namespace AutoMatics.Domain.Creditos.Services
             double SegRiePer = (double)seguroVehicularMensual * PV / NCxA;
             
             double PortesPer = (double)portesMensuales;
-            double GPSPer = 0.0;
-            double GasAdmPer = 0.0;
+            // ✨ GASTOS PERIÓDICOS CONECTADOS
+            double GPSPer = (double)gpsMensual;
+            double GasAdmPer = (double)gastosAdmMensuales;
 
             // FÓRMULAS EXCEL DE MONTOS INICIALES
             double CI = pCI * PV;
             double CF = pCF * PV;
             
-            // FÓRMULA EXCEL: Prestamo = PV - CI
+            // FÓRMULA EXCEL: Prestamo = PV - CI + SUMAR.SI (Gastos financiados)
             double Prestamo = PV - CI; 
+            
+            // ✨ LÓGICA DE FINANCIAMIENTO DE GASTOS INICIALES
+            if (financiarNotariales) Prestamo += (double)costesNotariales;
+            if (financiarRegistrales) Prestamo += (double)costesRegistrales;
+            if (financiarTasacion) Prestamo += (double)tasacion;
+            if (financiarEstudio) Prestamo += (double)comisionEstudio;
+            if (financiarActivacion) Prestamo += (double)comisionActivacion;
 
             resultado.MontoPrestamo = (decimal)Prestamo;
             resultado.CuotaFinalVal = (decimal)CF;
