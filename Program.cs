@@ -16,7 +16,7 @@ var builder = WebApplication.CreateBuilder(args);
 // 1. Configurar DB relacional MySQL
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<AutoMaticsDbContext>(options =>
-    options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString))
+    options.UseMySql(connectionString, new MySqlServerVersion(new Version(8, 0, 46)))
 );
 
 // 2. Seguridad - Autenticación JWT Bearer

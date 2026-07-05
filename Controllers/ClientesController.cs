@@ -85,7 +85,8 @@ namespace AutoMatics.Controllers
                 Status: c.EstadoCrediticio,
                 VehicleName: c.VehiculoObjetivo != null ? $"{c.VehiculoObjetivo.Marca} {c.VehiculoObjetivo.Modelo}" : null,
                 VehiclePrice: c.VehiculoObjetivo?.Precio,
-                VehicleCurrency: c.VehiculoObjetivo?.Moneda
+                VehicleCurrency: c.VehiculoObjetivo?.Moneda,
+    VehicleId: c.VehiculoObjetivo?.Id     
             )).ToList();
 
             var pagedData = new

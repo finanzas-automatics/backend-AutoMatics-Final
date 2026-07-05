@@ -61,6 +61,8 @@ namespace AutoMatics.Application.Creditos.Internal.CommandServices
                 evaluacion = new EvaluacionRiesgo(999999m, primeraCuotaTotal);
             }
 
+            
+
             var tipoTasa = command.EsTasaEfectiva ? "TEA" : "TNA";
 
             var credito = new Credito(
@@ -87,6 +89,7 @@ namespace AutoMatics.Application.Creditos.Internal.CommandServices
             await _unitOfWork.CompleteAsync();
             return credito;
         }
+        private static bool EsEstadoProtegido(string estado) => estado == "Aprobado" || estado == "Activo" || estado == "Mora";
 
         public async Task AprobarAsync(int id)
         {
@@ -100,11 +103,10 @@ namespace AutoMatics.Application.Creditos.Internal.CommandServices
             // 2. Buscamos TODOS los créditos de este cliente
             var todosLosCreditosDelCliente = await _creditoRepository.FindByClienteIdAsync(credito.ClienteId);
 
-            // 3. ✨ ELIMINACIÓN RADICAL: Borramos absolutamente TODOS los demás créditos del cliente
-            // No importa si eran borradores o aprobados antiguos, solo puede quedar el actual (id).
+
             foreach (var otroCredito in todosLosCreditosDelCliente)
             {
-                if (otroCredito.Id != id)
+                if (otroCredito.Id != id && !EsEstadoProtegido(otroCredito.Estado))
                 {
                     _creditoRepository.Remove(otroCredito);
                 }
@@ -129,27 +131,16 @@ namespace AutoMatics.Application.Creditos.Internal.CommandServices
             await _unitOfWork.CompleteAsync();
         }  
        
-        // ✨ AÑADE ESTA FUNCIÓN COMPLETA AL FINAL DE TU CLASE
         public async Task EliminarAsync(int id)
         {
-            // 1. Buscamos el crédito usando tu método 'FindByIdAsync'
             var credito = await _creditoRepository.FindByIdAsync(id);
-            
             if (credito == null)
-            {
                 throw new Exception("La simulación que intentas eliminar no existe o ya fue borrada.");
-            }
 
-            // 2. Protegemos el sistema
-            if (credito.Estado == "Aprobado" || credito.Estado == "Activo" || credito.Estado == "Mora")
-            {
+            if (EsEstadoProtegido(credito.Estado))
                 throw new Exception("No se puede eliminar un crédito que ya fue aprobado o está en curso.");
-            }
 
-            // 3. Lo eliminamos usando 'Remove'
             _creditoRepository.Remove(credito);
-            
-            // 4. Guardamos los cambios
             await _unitOfWork.CompleteAsync();
         }
     }

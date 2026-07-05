@@ -2,7 +2,6 @@ using System;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
@@ -11,6 +10,7 @@ using AutoMatics.Domain.IAM.Model.Aggregates;
 using AutoMatics.Domain.IAM.Model.Commands;
 using AutoMatics.Domain.IAM.Repositories;
 using AutoMatics.Domain.Common;
+using BCrypt.Net;
 
 namespace AutoMatics.Application.IAM.Internal
 {
@@ -20,7 +20,10 @@ namespace AutoMatics.Application.IAM.Internal
         private readonly IUnitOfWork _unitOfWork;
         private readonly IConfiguration _configuration;
 
-        public AuthCommandService(IUsuarioRepository usuarioRepository, IUnitOfWork unitOfWork, IConfiguration configuration)
+        public AuthCommandService(
+            IUsuarioRepository usuarioRepository,
+            IUnitOfWork unitOfWork,
+            IConfiguration configuration)
         {
             _usuarioRepository = usuarioRepository;
             _unitOfWork = unitOfWork;
@@ -30,7 +33,8 @@ namespace AutoMatics.Application.IAM.Internal
         public async Task<string> LoginAsync(string correo, string password)
         {
             var usuario = await _usuarioRepository.FindByCorreoAsync(correo);
-            if (usuario == null || usuario.PasswordHash != HashPassword(password))
+
+            if (usuario == null || !BCrypt.Net.BCrypt.Verify(password, usuario.PasswordHash))
                 throw new Exception("Credenciales inválidas.");
 
             return GenerarTokenJwt(usuario);
@@ -42,32 +46,51 @@ namespace AutoMatics.Application.IAM.Internal
                 throw new Exception("El correo ya está registrado.");
 
             var hash = HashPassword(command.Password);
-            
-            // ✅ PASO EL DNI AQUÍ:
-            var usuario = new Usuario(command.Nombres, command.Apellidos, command.Correo, hash, command.Dni); 
-            
+
+            var usuario = new Usuario(
+                command.Nombres,
+                command.Apellidos,
+                command.Correo,
+                hash,
+                command.Dni
+            );
+
             await _usuarioRepository.AddAsync(usuario);
             await _unitOfWork.CompleteAsync();
         }
 
         private string HashPassword(string password)
         {
-            using var sha256 = SHA256.Create();
-            var bytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
-            return Convert.ToBase64String(bytes);
+            return BCrypt.Net.BCrypt.HashPassword(password);
         }
 
         private string GenerarTokenJwt(Usuario usuario)
         {
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-            var claims = new[] {
+            var key = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!)
+            );
+
+            var creds = new SigningCredentials(
+                key,
+                SecurityAlgorithms.HmacSha256
+            );
+
+            var claims = new[]
+            {
                 new Claim(JwtRegisteredClaimNames.Sub, usuario.Id.ToString()),
                 new Claim(JwtRegisteredClaimNames.Email, usuario.Correo),
                 new Claim("nombres", usuario.Nombres),
-                new Claim("dni", usuario.Dni) // ✅ NUEVO CLAIM: El JWT ahora llevará el DNI real
+                new Claim("dni", usuario.Dni)
             };
-            var token = new JwtSecurityToken(_configuration["Jwt:Issuer"], _configuration["Jwt:Audience"], claims, expires: DateTime.Now.AddHours(4), signingCredentials: creds);
+
+            var token = new JwtSecurityToken(
+                issuer: _configuration["Jwt:Issuer"],
+                audience: _configuration["Jwt:Audience"],
+                claims: claims,
+                expires: DateTime.Now.AddHours(4),
+                signingCredentials: creds
+            );
+
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
     }

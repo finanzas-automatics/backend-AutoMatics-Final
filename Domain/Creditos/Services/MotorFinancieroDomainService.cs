@@ -11,13 +11,6 @@ namespace AutoMatics.Domain.Creditos.Services
         public double ConvertirNominalAEfectiva(double valorTasa, int diasNominal, int diasCapitalizacion, int diasDestino) => 
             Math.Pow(1 + (valorTasa / ((double)diasNominal / diasCapitalizacion)), (double)diasDestino / diasCapitalizacion) - 1;
 
-        public decimal CalcularCuotaFrancesa(decimal montoPrestamo, decimal montoCuotaFinal, double tem, int plazoMeses)
-        {
-            if (tem == 0) return (montoPrestamo - montoCuotaFinal) / plazoMeses;
-            double factorDescuento = Math.Pow(1 + tem, -plazoMeses);
-            decimal valorActualBalon = montoCuotaFinal * (decimal)factorDescuento;
-            return (montoPrestamo - valorActualBalon) * (decimal)(tem / (1 - factorDescuento));
-        }
 
         public double CalcularVAN(double[] flujoCaja, int plazoMeses, double tasaCokMensual)
         {
@@ -46,7 +39,6 @@ namespace AutoMatics.Domain.Creditos.Services
             bool esTasaEfectiva, int diasCapitalizacion, int mesesGraciaTotal, int mesesGraciaParcial, 
             decimal porcentajeCuotaFinal, decimal tasaDesgravamenMensual, decimal seguroVehicularMensual, 
             decimal portesMensuales, double tasaCokAnual,
-            // ✨ NUEVOS PARÁMETROS DEL EXCEL AÑADIDOS AQUÍ
             decimal costesNotariales, bool financiarNotariales,
             decimal costesRegistrales, bool financiarRegistrales,
             decimal tasacion, bool financiarTasacion,
@@ -56,9 +48,7 @@ namespace AutoMatics.Domain.Creditos.Services
         {
             var resultado = new SimulacionResultado();
 
-            // ========================================================
-            // 1. CONSTANTES Y MAPEO EXACTO DE FÓRMULAS DE EXCEL
-            // ========================================================
+
             double PV = (double)precioVenta;
             double pCI = (double)porcentajeCuotaInicial;
             double pCF = (double)porcentajeCuotaFinal;
@@ -69,7 +59,7 @@ namespace AutoMatics.Domain.Creditos.Services
             int frec = 30;
 
             // FÓRMULA EXCEL: TEA = SI(tpTasa="TNA"; (1+Tasa/(NDxA/pc))^(NDxA/pc)-1; Tasa)
-            double TEA = esTasaEfectiva ? Tasa : Math.Pow(1 + (Tasa / (NDxA / 1.0)), NDxA / 1.0) - 1;
+            double TEA = esTasaEfectiva ? Tasa : Math.Pow(1 + (Tasa / (NDxA / diasCapitalizacion)), NDxA / 1.0) - 1;
 
             // FÓRMULA EXCEL: TEM = (1+TEA)^(frec/NDxA)-1
             double TEM = Math.Pow(1 + TEA, (double)frec / NDxA) - 1;
@@ -82,7 +72,6 @@ namespace AutoMatics.Domain.Creditos.Services
             double SegRiePer = (double)seguroVehicularMensual * PV / NCxA;
             
             double PortesPer = (double)portesMensuales;
-            // ✨ GASTOS PERIÓDICOS CONECTADOS
             double GPSPer = (double)gpsMensual;
             double GasAdmPer = (double)gastosAdmMensuales;
 
@@ -93,7 +82,7 @@ namespace AutoMatics.Domain.Creditos.Services
             // FÓRMULA EXCEL: Prestamo = PV - CI + SUMAR.SI (Gastos financiados)
             double Prestamo = PV - CI; 
             
-            // ✨ LÓGICA DE FINANCIAMIENTO DE GASTOS INICIALES
+            // LÓGICA DE FINANCIAMIENTO DE GASTOS INICIALES
             if (financiarNotariales) Prestamo += (double)costesNotariales;
             if (financiarRegistrales) Prestamo += (double)costesRegistrales;
             if (financiarTasacion) Prestamo += (double)tasacion;
@@ -131,7 +120,6 @@ namespace AutoMatics.Domain.Creditos.Services
                 }
                 else cuota.TipoPeriodo = TipoPeriodo.NORMAL;
 
-                // --- TABLA DE ABAJO: CRONOGRAMA CUOTA FINAL ---
                 // Interes Cuota final = -@SICF*TEM
                 double ICF = SICF * TEM;
                 
@@ -144,7 +132,6 @@ namespace AutoMatics.Domain.Creditos.Services
                 // Saldo Final Cuota Final = @SICF - @ICF - @SegDesCF + @ACF
                 double SFCF = SICF + ICF + SegDesCF - ACF;
 
-                // --- TABLA DE ABAJO: CRONOGRAMA REGULAR ---
                 double I = 0, SegDes = 0, CuotaMensualReg = 0, A = 0, SF = 0;
                 
                 // SegRie, GPS, Portes, GasAdm

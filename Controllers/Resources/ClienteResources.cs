@@ -48,7 +48,8 @@ namespace AutoMatics.Controllers.Resources
         string Status,
         string? VehicleName,
         decimal? VehiclePrice,
-        string? VehicleCurrency
+        string? VehicleCurrency,
+        int? VehicleId
     );
 
     // ✅ Sin CreatedAt porque Cliente no tiene esa propiedad
