@@ -48,7 +48,6 @@ namespace AutoMatics.Domain.Creditos.Services
         {
             var resultado = new SimulacionResultado();
 
-
             double PV = (double)precioVenta;
             double pCI = (double)porcentajeCuotaInicial;
             double pCF = (double)porcentajeCuotaFinal;
@@ -58,8 +57,11 @@ namespace AutoMatics.Domain.Creditos.Services
             int NDxA = 360;
             int frec = 30;
 
+            // ✨ CORRECCIÓN CRÍTICA: Se calculan correctamente los periodos de capitalización (ej: 360 / 30 = 12)
+            double periodosCapitalizacion = (double)NDxA / diasCapitalizacion;
+
             // FÓRMULA EXCEL: TEA = SI(tpTasa="TNA"; (1+Tasa/(NDxA/pc))^(NDxA/pc)-1; Tasa)
-            double TEA = esTasaEfectiva ? Tasa : Math.Pow(1 + (Tasa / (NDxA / diasCapitalizacion)), NDxA / 1.0) - 1;
+            double TEA = esTasaEfectiva ? Tasa : Math.Pow(1 + (Tasa / periodosCapitalizacion), periodosCapitalizacion) - 1;
 
             // FÓRMULA EXCEL: TEM = (1+TEA)^(frec/NDxA)-1
             double TEM = Math.Pow(1 + TEA, (double)frec / NDxA) - 1;
