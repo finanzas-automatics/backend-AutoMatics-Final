@@ -32,7 +32,7 @@ namespace AutoMatics.Application.Creditos.Internal.CommandServices
 
         public async Task<Credito> HandleAsync(CreateSimulacionCommand command)
         {
-            // ✨ LLAMADA AL MOTOR ACTUALIZADA CON LOS 11 PARÁMETROS NUEVOS
+            ValidarCommand(command);
             var resultado = _motorFinanciero.GenerarCronograma(
                 command.PrecioVenta, command.PorcentajeCuotaInicial, command.PlazoMeses,
                 command.TasaInteresAnual, command.EsTasaEfectiva, command.DiasCapitalizacion,
@@ -88,6 +88,39 @@ namespace AutoMatics.Application.Creditos.Internal.CommandServices
             await _creditoRepository.AddAsync(credito);
             await _unitOfWork.CompleteAsync();
             return credito;
+        }
+
+        private static void ValidarCommand(CreateSimulacionCommand c)
+        {
+            var errores = new List<string>();
+
+            if (c.PrecioVenta <= 0) errores.Add("El precio de venta debe ser mayor a 0.");
+            if (c.PlazoMeses < 1 || c.PlazoMeses > 120) errores.Add("El plazo debe estar entre 1 y 120 meses.");
+
+            if (c.PorcentajeCuotaInicial < 0 || c.PorcentajeCuotaInicial > 1)
+                errores.Add("El % de cuota inicial debe estar entre 0 y 1 (ej. 0.10 para 10%).");
+            if (c.PorcentajeCuotaFinal < 0 || c.PorcentajeCuotaFinal > 1)
+                errores.Add("El % de cuota final debe estar entre 0 y 1 (ej. 0.30 para 30%).");
+            if (c.PorcentajeCuotaInicial + c.PorcentajeCuotaFinal >= 1)
+                errores.Add("La suma de cuota inicial y cuota final no puede ser mayor o igual al 100% del precio.");
+
+            if (c.TasaInteresAnual <= 0 || c.TasaInteresAnual > 1)
+                errores.Add("La tasa de interés anual debe estar entre 0 y 1 (ej. 0.15 para 15%).");
+            if (c.TasaCokAnual < 0 || c.TasaCokAnual > 1)
+                errores.Add("El COK anual debe estar entre 0 y 1 (ej. 0.10 para 10%).");
+
+            if (c.TasaDesgravamenMensual < 0 || c.TasaDesgravamenMensual > 0.05m)
+                errores.Add("El seguro de desgravamen mensual parece fuera de rango (máx. 5%).");
+            if (c.SeguroVehicularMensual < 0 || c.SeguroVehicularMensual > 0.05m)
+                errores.Add("El seguro vehicular mensual parece fuera de rango (máx. 5%).");
+
+            if (c.MesesGraciaTotal < 0 || c.MesesGraciaParcial < 0)
+                errores.Add("Los meses de gracia no pueden ser negativos.");
+            if (c.MesesGraciaTotal + c.MesesGraciaParcial >= c.PlazoMeses)
+                errores.Add("Los meses de gracia no pueden ser mayores o iguales al plazo total.");
+
+            if (errores.Any())
+                throw new ArgumentException(string.Join(" | ", errores));
         }
         private static bool EsEstadoProtegido(string estado) => estado == "Aprobado" || estado == "Activo" || estado == "Mora";
 

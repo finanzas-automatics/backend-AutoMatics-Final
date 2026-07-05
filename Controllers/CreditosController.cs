@@ -23,13 +23,18 @@ namespace AutoMatics.Controllers
         }
 
         [HttpPost("simular")]
-        public async Task<IActionResult> Simular([FromBody] CreateSimulacionCommand command)
-        {
-            // Ahora esto guarda en BD y devuelve un crédito con un ID real (ej. 15)
-            var credito = await _commandService.HandleAsync(command);
-            return Ok(ApiResponse<object>.Success(credito, "Cálculo estructurado bajo SBS exitoso. Guardado como Borrador."));
-        }
-
+            public async Task<IActionResult> Simular([FromBody] CreateSimulacionCommand command)
+            {
+                try
+                {
+                    var credito = await _commandService.HandleAsync(command);
+                    return Ok(ApiResponse<object>.Success(credito, "Cálculo estructurado bajo SBS exitoso. Guardado como Borrador."));
+                }
+                catch (ArgumentException ex)
+                {
+                    return BadRequest(ApiResponse<string>.Fail(ex.Message));
+                }
+            }
         [HttpPost("{id}/aprobar")]
         public async Task<IActionResult> Aprobar(int id)
         {
