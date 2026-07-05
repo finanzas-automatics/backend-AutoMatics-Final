@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Security.Claims; 
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using AutoMatics.Controllers.Resources;
@@ -28,10 +29,24 @@ namespace AutoMatics.Controllers
             _unitOfWork = unitOfWork;
         }
 
+        // ✨ HELPER: Método centralizado para extraer el ID a prueba de fallos
+        private int GetCurrentUserId()
+        {
+            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? 
+                               User.FindFirst("sub")?.Value ?? 
+                               User.Claims.FirstOrDefault(c => c.Type == "sub")?.Value;
+            
+            int.TryParse(userIdString, out int userId);
+            return userId;
+        }
+
         [HttpPost]
         public async Task<IActionResult> RegistrarCliente([FromBody] ClienteCreateResource resource)
         {
+            int usuarioIdActual = GetCurrentUserId();
+
             var command = new CrearClienteCommand(
+                usuarioIdActual, 
                 resource.DocumentType, resource.DocumentNumber, resource.FirstName,
                 resource.LastName, resource.Email, resource.Phone, resource.Address,
                 resource.MonthlyIncome, resource.Vehicle
@@ -48,7 +63,12 @@ namespace AutoMatics.Controllers
             [FromQuery] string? search = null,
             [FromQuery] string? status = null)
         {
+            int usuarioIdActual = GetCurrentUserId();
+
             var clientesDb = await _clienteRepository.GetAllAsync();
+
+            // ✨ FILTRAMOS PARA QUE CADA QUIEN VEA SU DATA
+            clientesDb = clientesDb.Where(c => c.UsuarioId == usuarioIdActual).ToList();
 
             if (!string.IsNullOrEmpty(search))
             {
@@ -86,7 +106,7 @@ namespace AutoMatics.Controllers
                 VehicleName: c.VehiculoObjetivo != null ? $"{c.VehiculoObjetivo.Marca} {c.VehiculoObjetivo.Modelo}" : null,
                 VehiclePrice: c.VehiculoObjetivo?.Precio,
                 VehicleCurrency: c.VehiculoObjetivo?.Moneda,
-    VehicleId: c.VehiculoObjetivo?.Id     
+                VehicleId: c.VehiculoObjetivo?.Id    
             )).ToList();
 
             var pagedData = new
@@ -109,6 +129,10 @@ namespace AutoMatics.Controllers
                 var cliente = await _clienteRepository.FindByIdAsync(id);
                 if (cliente == null)
                     return NotFound(new { exito = false, mensaje = "Cliente no encontrado" });
+
+                int usuarioIdActual = GetCurrentUserId();
+                if (cliente.UsuarioId != usuarioIdActual)
+                    return Unauthorized(new { exito = false, mensaje = "No tienes permiso para ver este cliente." });
 
                 VehicleDetalleResource? vehicleResource = null;
                 if (cliente.VehiculoObjetivo != null)
@@ -147,9 +171,13 @@ namespace AutoMatics.Controllers
                 if (cliente == null)
                     return NotFound(new { exito = false, mensaje = "Cliente no encontrado" });
 
+                int usuarioIdActual = GetCurrentUserId();
+                if (cliente.UsuarioId != usuarioIdActual)
+                    return Unauthorized(new { exito = false, mensaje = "No tienes permiso para editar este cliente." });
+
                 var estadoNormalizado = resource.Status?.ToLower() switch
                 {
-                    "aprobado"   => "Aprobado",      // ✅
+                    "aprobado"   => "Aprobado",      
                     "evaluacion" => "En Evaluación",
                     "pendiente"  => "Pendiente",
                     "mora"       => "Mora",
@@ -193,6 +221,10 @@ namespace AutoMatics.Controllers
                 if (cliente == null)
                     return NotFound(new { exito = false, mensaje = "Cliente no encontrado" });
 
+                int usuarioIdActual = GetCurrentUserId();
+                if (cliente.UsuarioId != usuarioIdActual)
+                    return Unauthorized(new { exito = false, mensaje = "No tienes permiso para eliminar este cliente." });
+
                 _clienteRepository.Delete(cliente);
                 await _unitOfWork.CompleteAsync();
 
@@ -204,7 +236,6 @@ namespace AutoMatics.Controllers
             }
         }
 
-        // ✅ Normaliza estados para comparación sin tildes ni espacios
         private static string NormalizarEstado(string estado)
         {
             var s = estado.ToLower()
@@ -215,7 +246,7 @@ namespace AutoMatics.Controllers
             return s switch
             {
                 "enevaluacion" or "evaluacion" => "evaluacion",
-                "aprobado" or "activo"         => "aprobado",  // ✅ activo sigue funcionando
+                "aprobado" or "activo"         => "aprobado",
                 "mora"                         => "mora",
                 "pendiente"                    => "pendiente",
                 _                              => s

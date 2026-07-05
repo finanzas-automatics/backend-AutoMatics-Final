@@ -19,35 +19,36 @@ namespace AutoMatics.Application.Clientes.Internal
             _unitOfWork = unitOfWork;
         }
 
-public async Task<int> HandleAsync(CrearClienteCommand command)
-{
-    // 1. Creamos al cliente SOLO con sus datos básicos
-    var cliente = new Cliente(
-        command.TipoDocumento, command.NumeroDocumento, command.Nombres, 
-        command.Apellidos, command.Correo, command.Telefono, 
-        command.Direccion, command.IngresosNetosMensuales
-    );
+        public async Task<int> HandleAsync(CrearClienteCommand command)
+        {
+            // ✨ 1. PASAMOS EL command.UsuarioId AL CLIENTE
+            var cliente = new Cliente(
+                command.UsuarioId,
+                command.TipoDocumento, command.NumeroDocumento, command.Nombres, 
+                command.Apellidos, command.Correo, command.Telefono, 
+                command.Direccion, command.IngresosNetosMensuales
+            );
 
-    // 2. ¡TRUCO AQUÍ! Guardamos al cliente primero para que MySQL le asigne su ID real.
-    await _clienteRepository.AddAsync(cliente);
-    await _unitOfWork.CompleteAsync();
+            // 2. Guardamos al cliente
+            await _clienteRepository.AddAsync(cliente);
+            await _unitOfWork.CompleteAsync();
 
-    // 3. Ahora que el cliente ya existe y tiene un ID (ej. 3), le asignamos el vehículo
-    if (command.Vehiculo != null)
-    {
-        cliente.AsignarVehiculo(
-            command.Vehiculo.Brand, command.Vehiculo.Model, command.Vehiculo.Year,
-            command.Vehiculo.Price, command.Vehiculo.Currency, command.Vehiculo.Status,
-            command.Vehiculo.FuelType, command.Vehiculo.Transmission, command.Vehiculo.Engine
-        );
+            // 3. Le asignamos el vehículo
+            if (command.Vehiculo != null)
+            {
+                cliente.AsignarVehiculo(
+                    command.Vehiculo.Brand, command.Vehiculo.Model, command.Vehiculo.Year,
+                    command.Vehiculo.Price, command.Vehiculo.Currency, command.Vehiculo.Status,
+                    command.Vehiculo.FuelType, command.Vehiculo.Transmission, command.Vehiculo.Engine
+                );
 
-        // 4. Hacemos un Update. Entity Framework ahora sabe a quién pertenece exactamente este vehículo.
-        _clienteRepository.Update(cliente);
-        await _unitOfWork.CompleteAsync();
-    }
-    
-    return cliente.Id;
-}
+                _clienteRepository.Update(cliente);
+                await _unitOfWork.CompleteAsync();
+            }
+            
+            return cliente.Id;
+        }
+
         public async Task HandleAsync(ActualizarClienteCommand command)
         {
             var cliente = await _clienteRepository.FindByIdAsync(command.Id) ?? throw new Exception("Cliente no encontrado");
