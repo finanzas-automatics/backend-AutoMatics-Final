@@ -5,7 +5,7 @@ namespace AutoMatics.Domain.Creditos.Model.Commands
         decimal PorcentajeCuotaInicial, int PlazoMeses, double TasaInteresAnual, bool EsTasaEfectiva,
         int DiasCapitalizacion, int MesesGraciaTotal, int MesesGraciaParcial, decimal PorcentajeCuotaFinal,
         decimal TasaDesgravamenMensual, decimal SeguroVehicularMensual, decimal PortesMensuales, double TasaCokAnual,
-        // ✨ NUEVOS CAMPOS AÑADIDOS
+
         decimal CostesNotariales, bool FinanciarNotariales,
         decimal CostesRegistrales, bool FinanciarRegistrales,
         decimal Tasacion, bool FinanciarTasacion,

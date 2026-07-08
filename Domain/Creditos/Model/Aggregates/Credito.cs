@@ -9,13 +9,13 @@ namespace AutoMatics.Domain.Creditos.Model.Aggregates
         public int ClienteId { get; private set; }
         public int VehiculoId { get; private set; }
         public int UsuarioId { get; private set; }
-        
+
         public decimal MontoPrestamo { get; private set; }
         public string Moneda { get; private set; } = string.Empty;
         public decimal ValorTasa { get; private set; }
         public string TipoTasa { get; private set; } = string.Empty;
         public int PlazoMeses { get; private set; }
-        
+
         public decimal IndicadorVAN { get; private set; }
         public decimal IndicadorTIR { get; private set; }
         public decimal IndicadorTCEA { get; private set; }
@@ -53,7 +53,6 @@ namespace AutoMatics.Domain.Creditos.Model.Aggregates
             Estado = "Aprobado";
         }
 
-        // --- NUEVOS MÉTODOS PARA EL FLUJO ---
         public void CambiarEstado(string nuevoEstado)
         {
             Estado = nuevoEstado;

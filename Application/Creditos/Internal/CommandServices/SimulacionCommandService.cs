@@ -61,8 +61,6 @@ namespace AutoMatics.Application.Creditos.Internal.CommandServices
                 evaluacion = new EvaluacionRiesgo(999999m, primeraCuotaTotal);
             }
 
-            
-
             var tipoTasa = command.EsTasaEfectiva ? "TEA" : "TNA";
 
             var credito = new Credito(
@@ -73,7 +71,6 @@ namespace AutoMatics.Application.Creditos.Internal.CommandServices
                 (decimal)resultado.Tcea * 100, evaluacion
             );
 
-            // Marcamos el crédito como borrador antes de guardarlo
             credito.CambiarEstado("Borrador");
 
             foreach (var cuota in resultado.Cronograma)
@@ -129,13 +126,10 @@ namespace AutoMatics.Application.Creditos.Internal.CommandServices
             var credito = await _creditoRepository.FindByIdAsync(id)
                 ?? throw new Exception("Simulación no encontrada");
 
-            // 1. Aprobamos el crédito seleccionado
             credito.AprobarCredito();
             _creditoRepository.Update(credito);
 
-            // 2. Buscamos TODOS los créditos de este cliente
             var todosLosCreditosDelCliente = await _creditoRepository.FindByClienteIdAsync(credito.ClienteId);
-
 
             foreach (var otroCredito in todosLosCreditosDelCliente)
             {
@@ -145,7 +139,6 @@ namespace AutoMatics.Application.Creditos.Internal.CommandServices
                 }
             }
 
-            // 4. Actualizamos el estado global del cliente
             if (credito.ClienteId > 0)
             {
                 var cliente = await _clienteRepository.FindByIdAsync(credito.ClienteId);
@@ -162,8 +155,8 @@ namespace AutoMatics.Application.Creditos.Internal.CommandServices
             }
 
             await _unitOfWork.CompleteAsync();
-        }  
-       
+        }
+
         public async Task EliminarAsync(int id)
         {
             var credito = await _creditoRepository.FindByIdAsync(id);

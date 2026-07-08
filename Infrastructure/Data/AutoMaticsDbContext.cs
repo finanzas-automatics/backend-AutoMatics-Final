@@ -22,12 +22,10 @@ namespace AutoMatics.Infrastructure.Data
             modelBuilder.Entity<Usuario>().HasKey(u => u.Id);
             modelBuilder.Entity<Cliente>().HasKey(c => c.Id);
             modelBuilder.Entity<Vehiculo>().HasKey(v => v.Id);
-            
-            // Relación Cliente -> Sustentos
+
             modelBuilder.Entity<SustentoCliente>().HasKey(s => s.Id);
             modelBuilder.Entity<Cliente>().HasMany(c => c.Sustentos).WithOne().HasForeignKey(s => s.ClienteId);
 
-            // Relación 1 a 1: Cliente -> Vehículo
             modelBuilder.Entity<Cliente>()
                 .HasOne(c => c.VehiculoObjetivo)
                 .WithOne()
@@ -36,7 +34,7 @@ namespace AutoMatics.Infrastructure.Data
 
             modelBuilder.Entity<Credito>().HasKey(c => c.Id);
             modelBuilder.Entity<Credito>().OwnsOne(c => c.EvaluacionRiesgo);
-            
+
             modelBuilder.Entity<Credito>().Property(c => c.IndicadorVAN).HasColumnType("decimal(18,2)");
             modelBuilder.Entity<Credito>().Property(c => c.IndicadorTIR).HasColumnType("decimal(18,6)");
             modelBuilder.Entity<Credito>().Property(c => c.IndicadorTCEA).HasColumnType("decimal(18,6)");
