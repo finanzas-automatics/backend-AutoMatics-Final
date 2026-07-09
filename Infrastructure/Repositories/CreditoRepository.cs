@@ -24,7 +24,7 @@ namespace AutoMatics.Infrastructure.Repositories
 
         public async Task<IEnumerable<Credito>> FindByClienteIdAsync(int clienteId)
         {
-            // Usa tu _context para buscar los créditos (asegúrate de incluir el using Microsoft.EntityFrameworkCore;)
+
             return await _context.Creditos
                                 .Where(c => c.ClienteId == clienteId)
                                 .ToListAsync();
@@ -59,7 +59,7 @@ namespace AutoMatics.Infrastructure.Repositories
 
         public void Remove(Credito credito)
         {
-            _context.Creditos.Remove(credito); // O el DbSet equivalente a tus créditos
+            _context.Creditos.Remove(credito);
         }
     }
 }

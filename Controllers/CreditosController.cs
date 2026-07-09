@@ -54,11 +54,9 @@ namespace AutoMatics.Controllers
         {
             var todos = await _queryService.ObtenerTodosAsync();
             var creditosDelCliente = todos.Where(c => c.ClienteId == clienteId).ToList();
-            
+
             return Ok(ApiResponse<object>.Success(creditosDelCliente));
         }
-
-
 
         [HttpGet("usuario/{usuarioId}")]
         public async Task<IActionResult> HistorialUsuario(int usuarioId)
@@ -72,8 +70,7 @@ namespace AutoMatics.Controllers
         {
             try
             {
-                // NOTA: Asegúrate de crear el método "EliminarAsync" en tu _commandService
-                // para que haga el _context.Creditos.Remove() en la base de datos.
+
                 await _commandService.EliminarAsync(id);
                 return Ok(ApiResponse<bool>.Success(true, "Simulación eliminada correctamente."));
             }
@@ -82,7 +79,6 @@ namespace AutoMatics.Controllers
                 return BadRequest(ApiResponse<string>.Fail(ex.Message));
             }
         }
-
 
         [HttpGet("{id}")]
         public async Task<IActionResult> Detalle(int id)

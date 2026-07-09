@@ -15,6 +15,24 @@ var builder = WebApplication.CreateBuilder(args);
 
 // 1. Configurar DB relacional MySQL
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
+// Soporte para despliegue en Railway (Variables de Entorno)
+var railwayMySqlUrl = Environment.GetEnvironmentVariable("MYSQL_URL");
+if (!string.IsNullOrEmpty(railwayMySqlUrl))
+{
+    var isParsed = Uri.TryCreate(railwayMySqlUrl, UriKind.Absolute, out Uri? dbUri);
+    if (isParsed && dbUri != null)
+    {
+        var userInfo = dbUri.UserInfo.Split(':');
+        var user = userInfo[0];
+        var pass = userInfo.Length > 1 ? userInfo[1] : "";
+        connectionString = $"Server={dbUri.Host};Port={dbUri.Port};Database={dbUri.LocalPath.TrimStart('/')};Uid={user};Pwd={pass};SslMode=Required;"
+    }
+}
+
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+
 builder.Services.AddDbContext<AutoMaticsDbContext>(options =>
     options.UseMySql(connectionString, new MySqlServerVersion(new Version(8, 0, 46)))
 );
@@ -94,15 +112,13 @@ using (var scope = app.Services.CreateScope())
 app.UseSwagger();
 app.UseSwaggerUI();
 
-// ✅ CORS absolutamente primero
 app.UseCors("AllowAll");
 
-// ✅ Captura excepciones no manejadas y devuelve JSON en vez de cerrar la conexión
 app.UseExceptionHandler(errorApp =>
 {
     errorApp.Run(async context =>
     {
-        // ✅ Mostrar el error real durante desarrollo
+       
         var exceptionFeature = context.Features
             .Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>();
         

@@ -5,10 +5,9 @@ namespace AutoMatics.Domain.Clientes.Model.Aggregates
     public class Cliente
     {
         public int Id { get; private set; }
-        
-        // ✨ NUEVA PROPIEDAD: Vincula el cliente con el asesor que lo creó
-        public int UsuarioId { get; private set; } 
-        
+
+        public int UsuarioId { get; private set; }
+
         public string TipoDocumento { get; private set; } = string.Empty;
         public string NumeroDocumento { get; private set; } = string.Empty;
         public string Nombres { get; private set; } = string.Empty;
@@ -19,12 +18,11 @@ namespace AutoMatics.Domain.Clientes.Model.Aggregates
         public decimal IngresosNetosMensuales { get; private set; }
         public string EstadoCrediticio { get; private set; } = "En Evaluación";
 
-        public Vehiculo? VehiculoObjetivo { get; private set; } 
+        public Vehiculo? VehiculoObjetivo { get; private set; }
         public ICollection<SustentoCliente> Sustentos { get; private set; } = new List<SustentoCliente>();
 
         protected Cliente() { }
 
-        // ✨ SE AGREGÓ 'usuarioId' COMO PRIMER PARÁMETRO
         public Cliente(int usuarioId, string tipoDocumento, string numeroDocumento, string nombres, string apellidos, string? correo, string? telefono, string? direccion, decimal ingresosNetosMensuales)
         {
             UsuarioId = usuarioId;

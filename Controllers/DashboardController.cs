@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using System.IdentityModel.Tokens.Jwt;
 using AutoMatics.Application.Creditos.Interfaces;
-using AutoMatics.Domain.Creditos.Model.Queries; 
+using AutoMatics.Domain.Creditos.Model.Queries;
 using AutoMatics.Domain.Clientes.Repositories;
 using AutoMatics.Shared.Responses;
 
@@ -31,19 +31,17 @@ namespace AutoMatics.Controllers
         [HttpGet("resumen")]
         public async Task<IActionResult> GetDashboardMetrics()
         {
-            // Obtener el ID del usuario autenticado desde el JWT
+
             var usuarioIdClaim = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
 
             if (!int.TryParse(usuarioIdClaim, out var usuarioId))
                 return Unauthorized();
 
-            // Obtener únicamente las simulaciones del usuario autenticado
             var creditosRaw = await _queryService.Handle(
                 new GetSimulacionesByUsuarioIdQuery(usuarioId));
 
             var clientes = await _clienteRepository.GetAllAsync();
 
-            // Solo créditos cuyos clientes aún existen
             var creditos = creditosRaw
                 .Where(c => clientes.Any(cli => cli.Id == c.ClienteId))
                 .ToList();

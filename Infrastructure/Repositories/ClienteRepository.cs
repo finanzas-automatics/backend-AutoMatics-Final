@@ -16,7 +16,6 @@ namespace AutoMatics.Infrastructure.Repositories
             _context = context;
         }
 
-
         public void Delete(Cliente cliente)
         {
             _context.Clientes.Remove(cliente);
@@ -28,7 +27,7 @@ namespace AutoMatics.Infrastructure.Repositories
 
         public async Task<Cliente?> FindByIdAsync(int id)
         {
-            // Traemos al cliente junto con su vehículo y sus sustentos usando Include
+
             return await _context.Clientes
                 .Include(c => c.VehiculoObjetivo)
                 .Include(c => c.Sustentos)
@@ -37,7 +36,7 @@ namespace AutoMatics.Infrastructure.Repositories
 
         public async Task<IEnumerable<Cliente>> GetAllAsync()
         {
-            // Traemos toda la lista de clientes incluyendo sus vehículos
+
             return await _context.Clientes
                 .Include(c => c.VehiculoObjetivo)
                 .ToListAsync();

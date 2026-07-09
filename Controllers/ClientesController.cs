@@ -1,7 +1,7 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
-using System.Security.Claims; 
+using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using AutoMatics.Controllers.Resources;
@@ -29,13 +29,12 @@ namespace AutoMatics.Controllers
             _unitOfWork = unitOfWork;
         }
 
-        // ✨ HELPER: Método centralizado para extraer el ID a prueba de fallos
         private int GetCurrentUserId()
         {
-            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? 
-                               User.FindFirst("sub")?.Value ?? 
+            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ??
+                               User.FindFirst("sub")?.Value ??
                                User.Claims.FirstOrDefault(c => c.Type == "sub")?.Value;
-            
+
             int.TryParse(userIdString, out int userId);
             return userId;
         }
@@ -46,7 +45,7 @@ namespace AutoMatics.Controllers
             int usuarioIdActual = GetCurrentUserId();
 
             var command = new CrearClienteCommand(
-                usuarioIdActual, 
+                usuarioIdActual,
                 resource.DocumentType, resource.DocumentNumber, resource.FirstName,
                 resource.LastName, resource.Email, resource.Phone, resource.Address,
                 resource.MonthlyIncome, resource.Vehicle
@@ -67,7 +66,6 @@ namespace AutoMatics.Controllers
 
             var clientesDb = await _clienteRepository.GetAllAsync();
 
-            // ✨ FILTRAMOS PARA QUE CADA QUIEN VEA SU DATA
             clientesDb = clientesDb.Where(c => c.UsuarioId == usuarioIdActual).ToList();
 
             if (!string.IsNullOrEmpty(search))
@@ -106,7 +104,7 @@ namespace AutoMatics.Controllers
                 VehicleName: c.VehiculoObjetivo != null ? $"{c.VehiculoObjetivo.Marca} {c.VehiculoObjetivo.Modelo}" : null,
                 VehiclePrice: c.VehiculoObjetivo?.Precio,
                 VehicleCurrency: c.VehiculoObjetivo?.Moneda,
-                VehicleId: c.VehiculoObjetivo?.Id    
+                VehicleId: c.VehiculoObjetivo?.Id
             )).ToList();
 
             var pagedData = new
@@ -177,7 +175,7 @@ namespace AutoMatics.Controllers
 
                 var estadoNormalizado = resource.Status?.ToLower() switch
                 {
-                    "aprobado"   => "Aprobado",      
+                    "aprobado"   => "Aprobado",
                     "evaluacion" => "En Evaluación",
                     "pendiente"  => "Pendiente",
                     "mora"       => "Mora",

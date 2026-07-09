@@ -14,8 +14,6 @@ namespace AutoMatics.Controllers.Resources
         VehicleCreateResource? Vehicle
     );
 
-
-    // ✅ Agrega al final de ClienteResources.cs
     public record ClienteUpdateResource(
         string DocumentType,
         string DocumentNumber,
@@ -26,7 +24,7 @@ namespace AutoMatics.Controllers.Resources
         string? Address,
         decimal MonthlyIncome,
         string Status,
-        VehicleCreateResource? Vehicle  // Reutilizamos el mismo record de creación
+        VehicleCreateResource? Vehicle
     );
     public record VehicleCreateResource(
         string Brand,
@@ -52,7 +50,6 @@ namespace AutoMatics.Controllers.Resources
         int? VehicleId
     );
 
-    // ✅ Sin CreatedAt porque Cliente no tiene esa propiedad
     public record ClienteDetalleResource(
         int Id,
         string DocumentType,
