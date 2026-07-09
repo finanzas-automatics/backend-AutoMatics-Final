@@ -26,7 +26,7 @@ if (!string.IsNullOrEmpty(railwayMySqlUrl))
         var userInfo = dbUri.UserInfo.Split(':');
         var user = userInfo[0];
         var pass = userInfo.Length > 1 ? userInfo[1] : "";
-        connectionString = $"Server={dbUri.Host};Port={dbUri.Port};Database={dbUri.LocalPath.TrimStart('/')};Uid={user};Pwd={pass};";
+        connectionString = $"Server={dbUri.Host};Port={dbUri.Port};Database={dbUri.LocalPath.TrimStart('/')};Uid={user};Pwd={pass};SslMode=Required;"
     }
 }
 
