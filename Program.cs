@@ -71,6 +71,26 @@ builder.Services.AddCors(options => {
 
 var app = builder.Build();
 
+// =========================================================================
+// ✅ TRUCO: Auto-creación y migración de la base de datos al ejecutar la app
+// =========================================================================
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    try
+    {
+        var dbContext = services.GetRequiredService<AutoMaticsDbContext>();
+        // Ejecuta las migraciones pendientes y crea la BD MySQL si no existe
+        dbContext.Database.Migrate();
+    }
+    catch (Exception ex)
+    {
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "Ocurrió un error al intentar crear o migrar la base de datos.");
+    }
+}
+// =========================================================================
+
 app.UseSwagger();
 app.UseSwaggerUI();
 
